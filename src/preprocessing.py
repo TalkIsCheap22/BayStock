@@ -41,13 +41,23 @@ def classify_3(val, one, two):
         return 1
     return 2
 
+def increase_1day(labels, dataset):
+    labels.append("increase_1day")
+    T = len(dataset[0])
+    for stock in dataset:
+        for i in range(1,T):
+            avg = stock[i][4] / stock[i-1][4] - 1 
+            stock[i].append(avg)
+        stock[0].append(stock[1][-1])
+    return labels, dataset
+
 def avg_increase_5days(labels, dataset):
     labels.append("avg_increase_5days")
     T = len(dataset[0])
     for stock in dataset:
         for i in range(5,T):
             avg = (stock[i][4] / stock[i-5][4] - 1) / 5 
-            stock[i].append(classify_3(avg, 0.008, -0.005))
+            stock[i].append(avg)
         for i in range(5):
             stock[i].append(stock[5][-1])
     return labels, dataset
@@ -75,48 +85,8 @@ def price_trend_5days(labels, dataset):     #0.008 is the 75 percent point, whil
 
 def read_and_process(stocks_file):
     labels, dataset = read_stocks(stocks_file)
+    labels, dataset = increase_1day(labels, dataset)
     labels, dataset = avg_increase_5days(labels, dataset)
     labels, dataset = price_trend_1day(labels, dataset)
     labels, dataset = price_trend_5days(labels, dataset)
     return labels, dataset
-
-######depricated func
-
-def read_single_stock(single_stock_file):
-    datas = []
-    with open(single_stock_file, mode="r", encoding="utf-8-sig") as file:
-        reader = csv.reader(file)
-        header = next(reader)
-        time_stamp = 0
-        for row in reader:
-            data = {}
-            data["time_stamp"] = time_stamp
-            time_stamp += 1
-            data["open"] = float(row[1])
-            data["high"] = float(row[2])
-            data["low"] = float(row[3])
-            data["close"] = float(row[4])
-            data["volumn"] = float(row[5])
-            datas.append(data)
-        for i in range(1,len(datas)-1):
-            prev_diff, next_diff = round(datas[i]["close"]-datas[i-1]["close"], 2), round(datas[i+1]["close"]-datas[i]["close"], 2)
-            datas[i]["prev_diff"] = prev_diff
-            datas[i]["next_diff"] = next_diff
-        diffs = [data["next_diff"] for data in datas[1:-1]]
-        avg_diff = float(sum(diffs)) / len(diffs)
-        errors = list(map(lambda x: (x - avg_diff) ** 2, diffs))
-        sigma = sum(errors) / len(errors)
-        diffs = list(map(lambda x: (x - avg_diff) / sigma, diffs))
-        def normal_classifier(x):
-            pos = norm.ppf(0.85)
-            if x > pos:
-                return 0
-            elif x > 0:
-                return 1
-            elif x > -pos:
-                return 2
-            return 3
-        diffs = list(map(normal_classifier, diffs))
-        for i in range(1, len(datas)-1):
-            datas[i]["price_trend"] = diffs[i-1]
-    return datas[1:-1]
